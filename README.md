@@ -24,7 +24,8 @@ The app lives in the menu bar (timer icon). It has no Dock icon.
 | Double-click the knob | Reset to 0 |
 | Drag the small tab on the right bezel | Transparency (up = solid, down = 20%) |
 | Scroll over the timer | Transparency |
-| Drag the bezel or corners | Move the window |
+| Drag any corner of the bezel | Resize (stays square, 160 px up to screen height) |
+| Drag the bezel edges or face corners | Move the window |
 | Right-click / control-click | Menu: presets, transparency slider, float on top, size, hide, quit |
 
 Menu bar icon shows the countdown while running and has the same menu.

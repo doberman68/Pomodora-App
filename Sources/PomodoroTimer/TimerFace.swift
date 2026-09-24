@@ -257,3 +257,23 @@ struct Knob: View {
         .shadow(color: .black.opacity(0.35), radius: size * 0.012, x: size * 0.004, y: size * 0.01)
     }
 }
+
+/// Highlight along the top-left bezel corner, shown while hovering a resize corner.
+/// Rotate it to place it on the other corners.
+struct CornerGrip: View {
+    let size: CGFloat
+
+    var body: some View {
+        let s = size
+        let cornerRadius = s * 0.2
+        Path { path in
+            path.addArc(center: CGPoint(x: cornerRadius, y: cornerRadius),
+                        radius: cornerRadius - s * 0.035,
+                        startAngle: .degrees(200), endAngle: .degrees(250),
+                        clockwise: false)
+        }
+        .stroke(Color.white.opacity(0.55), style: StrokeStyle(lineWidth: s * 0.014, lineCap: .round))
+        .shadow(color: .black.opacity(0.2), radius: s * 0.004, x: 0, y: s * 0.002)
+        .frame(width: s, height: s)
+    }
+}

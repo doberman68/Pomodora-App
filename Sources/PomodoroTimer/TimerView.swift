@@ -1,13 +1,49 @@
 import AppKit
 import SwiftUI
 
-/// Moves the borderless window by tracking the mouse in screen coordinates,
-/// so the drag stays stable while the window moves under the cursor.
+enum Corner: CaseIterable {
+    case topLeft, topRight, bottomLeft, bottomRight
+
+    var isLeft: Bool { self == .topLeft || self == .bottomLeft }
+    var isTop: Bool { self == .topLeft || self == .topRight }
+
+    /// Rotation that maps the top-left corner onto this one.
+    var rotation: Angle {
+        switch self {
+        case .topLeft: return .degrees(0)
+        case .topRight: return .degrees(90)
+        case .bottomRight: return .degrees(180)
+        case .bottomLeft: return .degrees(270)
+        }
+    }
+
+    /// Diagonal resize cursor. AppKit has no public one before macOS 15,
+    /// so use the system's private cursors when present.
+    @MainActor
+    var cursor: NSCursor {
+        let name = (self == .topLeft || self == .bottomRight)
+            ? "_windowResizeNorthWestSouthEastCursor"
+            : "_windowResizeNorthEastSouthWestCursor"
+        let selector = NSSelectorFromString(name)
+        let cursorClass: AnyObject = NSCursor.self
+        if cursorClass.responds(to: selector),
+           let cursor = cursorClass.perform(selector)?.takeUnretainedValue() as? NSCursor {
+            return cursor
+        }
+        return .crosshair
+    }
+}
+
+/// Moves and resizes the borderless window by tracking the mouse in screen
+/// coordinates, so drags stay stable while the window changes under the cursor.
 @MainActor
 final class WindowDragger {
+    static let minSide: CGFloat = 160
+
     weak var window: NSWindow?
     private var startOrigin: NSPoint?
     private var startMouse: NSPoint = .zero
+    private var resizeStart: (frame: NSRect, mouse: NSPoint)?
 
     func dragChanged() {
         guard let window else { return }
@@ -24,12 +60,39 @@ final class WindowDragger {
     func dragEnded() {
         startOrigin = nil
     }
+
+    /// Resizes from `corner`, keeping the window square and the opposite corner fixed.
+    func resizeChanged(corner: Corner) {
+        guard let window else { return }
+        let mouse = NSEvent.mouseLocation
+        if resizeStart == nil {
+            resizeStart = (window.frame, mouse)
+        }
+        guard let start = resizeStart else { return }
+
+        // Screen coordinates: y grows upward.
+        let dx = (mouse.x - start.mouse.x) * (corner.isLeft ? -1 : 1)
+        let dy = (mouse.y - start.mouse.y) * (corner.isTop ? 1 : -1)
+        let screen = window.screen?.visibleFrame.size ?? CGSize(width: 2000, height: 2000)
+        let maxSide = max(Self.minSide, min(screen.width, screen.height))
+        let side = min(max(start.frame.width + (dx + dy) / 2, Self.minSide), maxSide).rounded()
+
+        let x = corner.isLeft ? start.frame.maxX - side : start.frame.minX
+        let y = corner.isTop ? start.frame.minY : start.frame.maxY - side
+        window.setFrame(NSRect(x: x, y: y, width: side, height: side), display: true)
+    }
+
+    func resizeEnded() {
+        resizeStart = nil
+        window?.invalidateShadow()
+    }
 }
 
 /// The timer plus its mouse interactions, layered as invisible hit areas over the face:
 /// - drag the dial to set minutes
 /// - click the knob to start/pause, double-click to reset
 /// - drag the side tab to change transparency
+/// - drag a corner to resize
 /// - drag anywhere else to move the window
 @MainActor
 struct TimerView: View {
@@ -40,6 +103,7 @@ struct TimerView: View {
 
     @State private var lastDialMinute: Double?
     @State private var knobHovered = false
+    @State private var hoveredCorner: Corner?
 
     var body: some View {
         GeometryReader { geo in
@@ -51,6 +115,11 @@ struct TimerView: View {
                           knobHovered: knobHovered,
                           size: s)
                     .allowsHitTesting(false)
+                if let corner = hoveredCorner {
+                    CornerGrip(size: s)
+                        .rotationEffect(corner.rotation)
+                        .allowsHitTesting(false)
+                }
                 interactionLayer(size: s)
             }
             .frame(width: s, height: s)
@@ -109,6 +178,24 @@ struct TimerView: View {
                         }
                 )
                 .position(x: s * TimerFace.tabX, y: s * 0.5)
+
+            // Corners: resize.
+            ForEach(Corner.allCases, id: \.self) { corner in
+                Color.clear
+                    .frame(width: s * 0.13, height: s * 0.13)
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        hoveredCorner = hovering ? corner : nil
+                        if hovering { corner.cursor.push() } else { NSCursor.pop() }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in dragger.resizeChanged(corner: corner) }
+                            .onEnded { _ in dragger.resizeEnded() }
+                    )
+                    .position(x: s * (corner.isLeft ? 0.085 : 0.915),
+                              y: s * (corner.isTop ? 0.085 : 0.915))
+            }
         }
     }
 
