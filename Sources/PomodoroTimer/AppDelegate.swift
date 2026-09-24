@@ -16,6 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var panel: TimerPanel!
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
+    private let sizeMenu = NSMenu()
+    private let colorMenu = NSMenu()
+    private var customColorTarget = ColorTarget.disk
     private var opacitySlider: NSSlider!
     private var eventMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
@@ -155,8 +158,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
         menu.addItem(item("Float on Top", #selector(toggleFloat), tag: MenuTag.float))
 
+        let colorItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
+        for (index, preset) in Theme.presets.enumerated() {
+            let entry = item(preset.name, #selector(setTheme(_:)))
+            entry.tag = index
+            entry.image = preset.theme.swatch
+            colorMenu.addItem(entry)
+        }
+        colorMenu.addItem(.separator())
+        colorMenu.addItem(item("Custom Disk Color…", #selector(pickCustomColor(_:)), tag: ColorTarget.disk.rawValue))
+        colorMenu.addItem(item("Custom Frame Color…", #selector(pickCustomColor(_:)), tag: ColorTarget.frame.rawValue))
+        colorItem.submenu = colorMenu
+        menu.addItem(colorItem)
+
         let sizeItem = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
-        let sizeMenu = NSMenu()
         for size in Self.sizes {
             let entry = item(size.title, #selector(setSize(_:)))
             entry.tag = size.side
@@ -174,6 +189,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         static let toggle = 9001
         static let float = 9002
         static let visibility = 9003
+    }
+
+    private enum ColorTarget: Int {
+        case disk = 1
+        case frame = 2
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "", tag: Int = 0) -> NSMenuItem {
@@ -200,11 +220,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         menu.item(withTag: MenuTag.toggle)?.title = model.isRunning ? "Pause" : "Start"
         menu.item(withTag: MenuTag.float)?.state = model.alwaysOnTop ? .on : .off
         menu.item(withTag: MenuTag.visibility)?.title = panel.isVisible ? "Hide Timer" : "Show Timer"
-        if let sizeMenu = menu.items.first(where: { $0.submenu != nil })?.submenu {
-            let side = Int(panel.frame.width.rounded())
-            for entry in sizeMenu.items {
-                entry.state = entry.tag == side ? .on : .off
-            }
+        let side = Int(panel.frame.width.rounded())
+        for entry in sizeMenu.items {
+            entry.state = entry.tag == side ? .on : .off
+        }
+        for entry in colorMenu.items where entry.action == #selector(setTheme(_:)) {
+            entry.state = Theme.presets[entry.tag].theme == model.theme ? .on : .off
         }
     }
 
@@ -223,6 +244,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     @objc private func opacityChanged(_ sender: NSSlider) {
         model.opacity = sender.doubleValue / 100
+    }
+
+    @objc private func setTheme(_ sender: NSMenuItem) {
+        model.theme = Theme.presets[sender.tag].theme
+    }
+
+    /// Opens the system color picker; colors apply live as you pick.
+    @objc private func pickCustomColor(_ sender: NSMenuItem) {
+        customColorTarget = ColorTarget(rawValue: sender.tag) ?? .disk
+        let picker = NSColorPanel.shared
+        picker.setTarget(nil)
+        picker.showsAlpha = false
+        picker.color = (customColorTarget == .disk ? model.theme.disk : model.theme.frame).nsColor
+        picker.title = customColorTarget == .disk ? "Disk Color" : "Frame Color"
+        picker.setTarget(self)
+        picker.setAction(#selector(customColorChanged(_:)))
+        picker.level = .floating
+        NSApp.activate(ignoringOtherApps: true)
+        picker.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func customColorChanged(_ sender: NSColorPanel) {
+        guard let rgb = RGB(nsColor: sender.color) else { return }
+        switch customColorTarget {
+        case .disk: model.theme.disk = rgb
+        case .frame: model.theme.frame = rgb
+        }
     }
 
     @objc private func toggleFloat() { model.alwaysOnTop.toggle() }

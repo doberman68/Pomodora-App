@@ -113,6 +113,7 @@ struct TimerView: View {
                           isRunning: model.isRunning,
                           opacity: model.opacity,
                           knobHovered: knobHovered,
+                          theme: model.theme,
                           size: s)
                     .allowsHitTesting(false)
                 if let corner = hoveredCorner {

@@ -1,16 +1,10 @@
 import SwiftUI
 
+/// Fixed colors. Frame and disk colors come from `Theme`.
 enum Palette {
-    static let bezelTop = Color(red: 0.60, green: 0.67, blue: 0.75)
-    static let bezelBottom = Color(red: 0.47, green: 0.55, blue: 0.64)
     static let face = Color(red: 0.975, green: 0.978, blue: 0.99)
     static let faceShade = Color(red: 0.92, green: 0.925, blue: 0.945)
-    static let diskTop = Color(red: 0.25, green: 0.25, blue: 0.42)
-    static let disk = Color(red: 0.19, green: 0.19, blue: 0.34)
     static let ink = Color(red: 0.07, green: 0.07, blue: 0.09)
-    static let knobLight = Color(red: 0.74, green: 0.79, blue: 0.85)
-    static let knobDark = Color(red: 0.53, green: 0.60, blue: 0.68)
-    static let label = Color(red: 0.40, green: 0.49, blue: 0.56)
 }
 
 /// Dial math. Minutes run counter-clockwise from 12 o'clock, like the physical Time Timer.
@@ -57,6 +51,7 @@ struct TimerFace: View {
     let isRunning: Bool
     let opacity: Double
     let knobHovered: Bool
+    let theme: Theme
     let size: CGFloat
 
     private var minutes: Double { remaining / 60 }
@@ -68,12 +63,12 @@ struct TimerFace: View {
             face
             DialMarks(size: s)
             RemainingWedge(minutes: minutes)
-                .fill(LinearGradient(colors: [Palette.diskTop, Palette.disk],
+                .fill(LinearGradient(colors: [theme.diskTop, theme.diskBottom],
                                      startPoint: .top, endPoint: .bottom))
                 .frame(width: s * Self.diskRadius * 2, height: s * Self.diskRadius * 2)
                 .shadow(color: .black.opacity(0.28), radius: s * 0.012, x: 0, y: s * 0.006)
             glass
-            Knob(minutes: minutes, isRunning: isRunning, hovered: knobHovered, size: s)
+            Knob(minutes: minutes, isRunning: isRunning, hovered: knobHovered, theme: theme, size: s)
             readout
             opacityTab
         }
@@ -84,7 +79,7 @@ struct TimerFace: View {
         let s = size
         let shape = RoundedRectangle(cornerRadius: s * 0.2, style: .continuous)
         return ZStack {
-            shape.fill(LinearGradient(colors: [Palette.bezelTop, Palette.bezelBottom],
+            shape.fill(LinearGradient(colors: [theme.bezelTop, theme.bezelBottom],
                                       startPoint: .top, endPoint: .bottom))
             shape.strokeBorder(
                 LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.05), .black.opacity(0.2)],
@@ -134,7 +129,7 @@ struct TimerFace: View {
         return Text(Self.format(remaining))
             .font(.system(size: s * 0.05, weight: .bold, design: .rounded))
             .monospacedDigit()
-            .foregroundColor(Palette.label.opacity(isRunning || remaining == 0 ? 1 : 0.7))
+            .foregroundColor(theme.label.opacity(isRunning || remaining == 0 ? 1 : 0.7))
             .position(x: s * 0.78, y: s * 0.885)
     }
 
@@ -148,7 +143,7 @@ struct TimerFace: View {
                 .frame(width: s * 0.012, height: s * Self.tabTravel)
                 .position(x: s * Self.tabX, y: s * 0.5)
             RoundedRectangle(cornerRadius: s * 0.01, style: .continuous)
-                .fill(LinearGradient(colors: [Palette.knobLight, Palette.knobDark],
+                .fill(LinearGradient(colors: [theme.knobLight, theme.knobDark],
                                      startPoint: .leading, endPoint: .trailing))
                 .overlay(
                     VStack(spacing: s * 0.008) {
@@ -230,6 +225,7 @@ struct Knob: View {
     let minutes: Double
     let isRunning: Bool
     let hovered: Bool
+    let theme: Theme
     let size: CGFloat
 
     var body: some View {
@@ -237,13 +233,13 @@ struct Knob: View {
         let nubLength = r + size * 0.055
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.008, style: .continuous)
-                .fill(LinearGradient(colors: [Palette.knobLight, Palette.knobDark],
+                .fill(LinearGradient(colors: [theme.knobLight, theme.knobDark],
                                      startPoint: .leading, endPoint: .trailing))
                 .frame(width: size * 0.024, height: nubLength)
                 .frame(width: nubLength * 2, height: nubLength * 2, alignment: .top)
                 .rotationEffect(.degrees(-minutes * 6))
             Circle()
-                .fill(RadialGradient(colors: [Palette.knobLight, Palette.knobDark],
+                .fill(RadialGradient(colors: [theme.knobLight, theme.knobDark],
                                      center: UnitPoint(x: 0.35, y: 0.3),
                                      startRadius: 0, endRadius: r * 1.7))
                 .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: max(0.5, size * 0.003)))

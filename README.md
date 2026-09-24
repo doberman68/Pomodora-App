@@ -26,10 +26,12 @@ The app lives in the menu bar (timer icon). It has no Dock icon.
 | Scroll over the timer | Transparency |
 | Drag any corner of the bezel | Resize (stays square, 160 px up to screen height) |
 | Drag the bezel edges or face corners | Move the window |
-| Right-click / control-click | Menu: presets, transparency slider, float on top, size, hide, quit |
+| Right-click / control-click | Menu: presets, transparency slider, float on top, color, size, hide, quit |
+
+**Color:** pick one of 8 frame + disk combos, or choose any disk or frame color with the system color picker (applies live).
 
 Menu bar icon shows the countdown while running and has the same menu.
 
 When time is up it plays a chime and posts a notification. Allow notifications on first launch.
 
-Position, size, transparency, float-on-top and last duration are remembered.
+Position, size, color, transparency, float-on-top and last duration are remembered.

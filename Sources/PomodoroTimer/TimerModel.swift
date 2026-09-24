@@ -26,6 +26,10 @@ final class TimerModel: ObservableObject {
         didSet { defaults.set(alwaysOnTop, forKey: Keys.alwaysOnTop) }
     }
 
+    @Published var theme: Theme {
+        didSet { defaults.set(try? JSONEncoder().encode(theme), forKey: Keys.theme) }
+    }
+
     /// The last duration the user dialed in; clicking the knob at 0 restarts it.
     private(set) var lastSetSeconds: TimeInterval
 
@@ -37,12 +41,15 @@ final class TimerModel: ObservableObject {
         static let opacity = "opacity"
         static let alwaysOnTop = "alwaysOnTop"
         static let lastSetSeconds = "lastSetSeconds"
+        static let theme = "theme"
     }
 
     init() {
         let defaults = UserDefaults.standard
         opacity = defaults.object(forKey: Keys.opacity) as? Double ?? 1.0
         alwaysOnTop = defaults.object(forKey: Keys.alwaysOnTop) as? Bool ?? true
+        theme = defaults.data(forKey: Keys.theme)
+            .flatMap { try? JSONDecoder().decode(Theme.self, from: $0) } ?? .slate
         let last = defaults.double(forKey: Keys.lastSetSeconds)
         let initial = last > 0 ? last : 25 * 60
         lastSetSeconds = initial
